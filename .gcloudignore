@@ -2,3 +2,14 @@
 __pycache__/
 *.pyc
 .env
+.env.*
+.git/
+.gitignore
+.gitattributes
+.venv/
+venv/
+.vscode/
+.idea/
+.claude/
+.pytest_cache/
+*.log

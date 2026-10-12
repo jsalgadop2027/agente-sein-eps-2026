@@ -18,14 +18,12 @@ client_secret*.json
 
 # --- Datos y estado local de la app ---
 .store/
-data/
 *.sqlite
 *.db
 *.log
 # Reportes generados
 reports_out/
 *.pdf
-!docs/**/*.pdf
 
 # --- Python ---
 __pycache__/
