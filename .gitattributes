@@ -1,0 +1,32 @@
+# Saltos de línea LF en el repo y en la copia de trabajo (Windows incluido):
+# la imagen corre en Linux y `gcloud run deploy --source .` sube la carpeta local tal cual.
+* text=auto eol=lf
+
+# Scripts de Linux: siempre LF (con CRLF bash falla con "$'\r': command not found")
+*.sh       text eol=lf
+Dockerfile text eol=lf
+*.py       text eol=lf
+*.yaml     text eol=lf
+*.yml      text eol=lf
+*.txt      text eol=lf
+*.md       text eol=lf
+*.html     text eol=lf
+
+# Scripts de Windows: CRLF
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+*.ps1      text eol=crlf
+
+# Binarios: sin conversión ni diff de texto
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.ttf  binary
+*.otf  binary
+*.woff binary
+*.woff2 binary
+*.xlsx binary
+*.docx binary
