@@ -1,0 +1,51 @@
+# --- Secretos y credenciales (nunca subir) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+# Llaves de cuentas de servicio de GCP
+*-sa.json
+*sa-key*.json
+service-account*.json
+credentials*.json
+application_default_credentials.json
+client_secret*.json
+.gcloud/
+.config/gcloud/
+
+# --- Datos y estado local de la app ---
+.store/
+data/
+*.sqlite
+*.db
+*.log
+# Reportes generados
+reports_out/
+*.pdf
+!docs/**/*.pdf
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# --- Editor / sistema operativo ---
+.vscode/
+.idea/
+.claude/
+Thumbs.db
+desktop.ini
+.DS_Store
+~$*

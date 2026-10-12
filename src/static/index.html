@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GenEPS · Agente SEIN</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+/* Fondo sepia cálido (pergamino suave) con neutros tibios a juego; los botones conservan el azul marino */
+:root{--navy:#0a2463;--navy-hover:#163d8c;--navy-edge:transparent;--bg:#f2e8d5;--panel:#fbf6ec;--ink:#2b241c;--muted:#6b5e4d;--line:#e2d4bb;--accent:#0b5cad;--accent-ink:#fff;
+--ok:#1f7a3d;--warn:#a15c00;--bad:#b3261e;--chip:#efe3cc;--user:#eadcc1}
+@media (prefers-color-scheme:dark){:root{--bg:#1e1a15;--panel:#28221b;--ink:#ece3d3;--muted:#b3a58f;--line:#3d3428;
+--accent:#5aa2ef;--accent-ink:#0d1520;--navy-edge:#5a7fc4;--ok:#5cc485;--warn:#e0a24a;--bad:#f2817a;--chip:#352d23;--user:#3a2f22}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:17px;margin:0}header .tag{font-size:12px;color:var(--muted)}
+main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px;max-width:1400px;margin:0 auto;height:calc(100vh - 56px)}
+aside,section{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-height:0}
+aside{padding:14px;overflow:auto}section{display:flex;flex-direction:column}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 2px}
+input,textarea,select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{resize:vertical}
+/* Todos los botones en azul marino para reconocerlos a simple vista (Rechazar conserva el rojo de alerta) */
+button,input[type=file]::file-selector-button{border:1px solid var(--navy-edge);border-radius:6px;padding:8px 12px;font:inherit;
+cursor:pointer;background:var(--navy);color:#fff;font-weight:600}
+button:hover:not(:disabled),input[type=file]::file-selector-button:hover{background:var(--navy-hover)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=file]::file-selector-button{padding:5px 10px;margin-right:8px;font-size:12.5px}
+button.bad{background:var(--bad);border-color:var(--bad);color:#fff}button.bad:hover:not(:disabled){background:var(--bad);filter:brightness(.9)}
+button:disabled{opacity:.45;cursor:not-allowed}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:16px 0 6px}
+#log{flex:1;overflow:auto;padding:16px}
+.msg{margin:0 0 14px;max-width:920px}.msg.user{background:var(--user);padding:10px 12px;border-radius:8px;margin-left:auto;width:fit-content;max-width:80%}
+.msg.assistant .body{padding:2px 0}.msg table{border-collapse:collapse;margin:8px 0;font-size:13.5px}
+.msg th,.msg td{border:1px solid var(--line);padding:4px 8px;text-align:left}.msg pre{background:var(--bg);padding:8px;overflow:auto;border-radius:6px}
+details.think{font-size:13px;color:var(--muted);margin:4px 0}details.think summary{cursor:pointer}
+.chip{display:inline-block;background:var(--chip);border-radius:12px;padding:2px 9px;font-size:12px;margin:2px 4px 2px 0;font-family:ui-monospace,monospace}
+.card{border:1px solid var(--warn);border-radius:8px;padding:12px;margin:10px 0;background:var(--panel)}
+.card h3{margin:0 0 6px;font-size:14px;color:var(--warn)}.card pre{font-size:12px;margin:6px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+form#chat{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}form#chat textarea{flex:1;min-height:44px}
+.sugg button{margin:3px 4px 3px 0;font-size:12.5px;font-weight:500;text-align:left}
+.ev{font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}.ev a{color:var(--accent);cursor:pointer}
+.muted{color:var(--muted);font-size:13px}.err{color:var(--bad)}.okc{color:var(--ok)}
+fieldset{border:1px solid var(--line);border-radius:8px;padding:4px 10px 10px;margin:12px 0 0}legend{font-size:12px;color:var(--muted);padding:0 4px}
+input[type=file]{padding:5px;font-size:13px}.hint{font-size:11.5px;color:var(--muted);margin-top:3px}
+svg.chart{width:100%;height:auto;background:var(--bg);border-radius:6px}
+#viewer{margin-top:10px}
+@media (max-width:860px){main{grid-template-columns:1fr;height:auto;padding:12px 16px}#log{max-height:65vh}}
+/* Indicador de progreso: centrado en la ventana, no bloquea la lectura ni el desplazamiento */
+#progress{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:50;
+opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s}
+#progress.on{opacity:1;visibility:visible}
+#progress .pcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 22px 16px;width:min(340px,calc(100vw - 32px));
+text-align:center;box-shadow:0 12px 40px rgba(74,52,24,.18);transform:translateY(8px) scale(.98);transition:transform .25s ease}
+#progress.on .pcard{transform:none}
+#progress svg{width:100%;height:auto;display:block;color:var(--accent)}
+#progress .rotor{transform-origin:40px 60px;animation:spin 1.1s linear infinite}
+#progress .wave{animation:flow 1.2s linear infinite}
+#progress .busnode{transform-origin:256px 60px;animation:pulse 1.2s ease-in-out infinite}
+#progress .spark{animation:blink 1.2s ease-in-out infinite}
+#ptext{font-weight:600;margin-top:8px;min-height:1.5em;transition:opacity .3s}
+#ptext.fade{opacity:0}
+#pmeta{font-size:12px;color:var(--muted);margin-top:2px}
+#progress .bar{height:4px;border-radius:2px;background:var(--chip);overflow:hidden;margin-top:10px}
+#progress .bar i{display:block;height:100%;width:35%;border-radius:2px;background:var(--accent);animation:slide 1.6s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes flow{to{transform:translateX(-56px)}}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.25);opacity:1}}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+@keyframes slide{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
+@media (prefers-reduced-motion:reduce){#progress .rotor,#progress .wave,#progress .busnode,#progress .spark,#progress .bar i{animation:none}}
+</style>
+</head>
+<body>
+<header><h1>GenEPS</h1><span class="tag">Agente de estudios de estabilidad SEP · SEIN · semi-autónomo con aprobaciones</span></header>
+<main>
+<aside>
+  <div id="setup">
+    <h2>Nueva sesión</h2>
+    <label>Usuario</label><input id="f_user" placeholder="Nombre del ingeniero">
+    <label>Rol</label><input id="f_role" value="Ingeniero de planificación">
+    <label>Proyecto</label><input id="f_project" value="demo-ieee14">
+    <label>Objetivo del estudio *</label><textarea id="f_obj" rows="2">Evaluar la seguridad N-1 y la estabilidad transitoria del sistema de prueba</textarea>
+    <label>Escenario *</label><textarea id="f_esc" rows="2">IEEE 14 barras, demanda base</textarea>
+    <label>Criterios (opcional)</label><input id="f_crit" placeholder="Por defecto: NTCSE + COES N-1">
+    <label>Restricciones (opcional)</label><input id="f_rest">
+    <fieldset>
+      <legend>Archivos de datos a evaluar</legend>
+      <label for="f_cs">Caso estático · flujo de potencia y N-1</label><select id="f_cs"></select>
+      <label for="f_cd">Caso dinámico · transitoria y pequeña señal</label><select id="f_cd"></select>
+      <label for="f_file">Subir archivo nuevo</label><input type="file" id="f_file" accept=".txt,.cdf,.xlsx">
+      <div class="hint">IEEE CDF (.txt, .cdf) → estático · ANDES (.xlsx) → dinámico · máx. 5 MB</div>
+      <div id="upmsg" class="hint" role="status"></div>
+    </fieldset>
+    <div style="margin-top:12px"><button id="btnStart">Cargar archivo</button></div>
+  </div>
+  <div id="info" hidden>
+    <h2>Sesión</h2><div id="sinfo" class="muted"></div>
+    <div class="row" style="margin-top:8px"><button class="sec" id="btnNew">Cargar nuevo archivo</button>
+      <button id="btnPdf" disabled title="Disponible cuando el agente haya respondido al menos una consulta">⬇ Descargar PDF</button></div>
+    <div id="pdfmsg" class="hint" role="status"></div>
+    <h2>Estudios</h2><div id="events" class="muted">Sin estudios aún.</div>
+    <h2>Informes</h2><div id="reports" class="muted">Sin informes.</div>
+    <div id="viewer"></div>
+    <h2>Consumo LLM</h2><div id="usage" class="muted">-</div>
+  </div>
+</aside>
+<section>
+  <div id="log"><p class="muted">Elija los archivos de datos y pulse «Cargar archivo» para conversar con el agente. Las simulaciones transitorias y la emisión de informes requieren su aprobación.</p></div>
+  <div class="sugg" style="padding:0 12px" id="sugg" hidden>
+    <button class="sec">Valida el caso base y ejecuta el análisis N-1. ¿Cuáles son las contingencias críticas?</button>
+    <button class="sec">Evalúa la estabilidad transitoria ante una falla trifásica en la barra 4 despejada en 100 ms con disparo de la línea 4-5.</button>
+    <button class="sec">Revisa el amortiguamiento de los modos electromecánicos.</button>
+    <button class="sec">Prepara el informe técnico con los estudios realizados.</button>
+  </div>
+  <form id="chat"><textarea id="msg" placeholder="Escriba su consulta técnica…" disabled></textarea><button id="btnSend" disabled>Enviar</button></form>
+</section>
+</main>
+<div id="progress" role="status" aria-live="polite" aria-hidden="true">
+  <div class="pcard">
+    <svg viewBox="0 0 300 120" aria-hidden="true">
+      <defs><clipPath id="pclip"><rect x="68" y="30" width="182" height="60"/></clipPath></defs>
+      <!-- generador con rotor girando -->
+      <circle cx="40" cy="60" r="26" fill="none" stroke="currentColor" stroke-width="2.5"/>
+      <g class="rotor"><line x1="40" y1="40" x2="40" y2="80" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="40" cy="40" r="4" fill="currentColor"/><circle cx="40" cy="80" r="4" fill="var(--warn)"/></g>
+      <!-- línea de transmisión con onda de 60 Hz -->
+      <line x1="66" y1="60" x2="253" y2="60" stroke="currentColor" stroke-width="1" opacity=".25"/>
+      <g clip-path="url(#pclip)"><path class="wave" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+        d="M68 60 q14 -18 28 0 q14 18 28 0 q14 -18 28 0 q14 18 28 0 q14 -18 28 0 q14 18 28 0 q14 -18 28 0 q14 18 28 0 q14 -18 28 0 q14 18 28 0"/></g>
+      <!-- barra receptora y carga -->
+      <rect class="busnode" x="253" y="34" width="6" height="52" rx="2" fill="currentColor"/>
+      <path class="spark" d="M262 60 h20 m-6 -6 l6 6 l-6 6" fill="none" stroke="var(--ok)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div id="ptext">El agente está trabajando…</div>
+    <div id="pmeta">0 s</div>
+    <div class="bar"><i></i></div>
+  </div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+let SID = null;
+const md = t => DOMPurify.sanitize(marked.parse(t || ""));
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function store(k, v){ try{ v === undefined ? localStorage.removeItem(k) : localStorage.setItem(k, v) }catch(e){} }
+function recall(k){ try{ return localStorage.getItem(k) }catch(e){ return null } }
+
+async function api(path, body){
+  const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {});
+  if(!r.ok){ throw new Error((await r.json().catch(()=>({detail:r.statusText}))).detail || r.statusText) }
+  return r.json();
+}
+function add(html, cls){ const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html; $("#log").appendChild(d); $("#log").scrollTop = 1e9; return d; }
+function renderStep(st){
+  if(st.text) $("#btnPdf").disabled = false;  // ya hay al menos una respuesta
+  let h = "";
+  if(st.thinking) h += `<details class="think"><summary>Razonamiento (resumen)</summary>${md(st.thinking)}</details>`;
+  if(st.text) h += `<div class="body">${md(st.text)}</div>`;
+  if(st.tool_calls && st.tool_calls.length) h += st.tool_calls.map(c => `<span class="chip">⚙ ${esc(c.name)}</span>`).join("");
+  if(h) add(h, "assistant");
+}
+function renderApprovals(list){
+  list.forEach(a => {
+    const card = add(`<div class="card"><h3>Aprobación requerida · ${esc(a.tool)}</h3>
+      <div class="muted">${esc(a.motivo_aprobacion)}</div>
+      ${a.input.justificacion ? `<p>${esc(a.input.justificacion)}</p>` : ""}
+      <pre>${esc(JSON.stringify(a.input, null, 1)).slice(0, 1500)}</pre>
+      <div class="row"><input class="signer" placeholder="Nombre de quien aprueba/firma" style="max-width:260px">
+      <input class="comment" placeholder="Comentario (opcional)" style="max-width:300px">
+      <button class="ok">Aprobar</button><button class="bad no">Rechazar</button></div></div>`, "assistant");
+    const go = async approved => {
+      const signer = card.querySelector(".signer").value.trim();
+      if(approved && !signer){ card.querySelector(".signer").focus(); return; }
+      card.querySelectorAll("button").forEach(b => b.disabled = true);
+      busy(true, approved ? a.tool : "rechazo");
+      try{ handle(await api("/api/approve", {session_id:SID, decisions:{[a.tool_use_id]:{approved, signer, comment:card.querySelector(".comment").value}}})) }
+      catch(e){ add(`<p class="err">${esc(e.message)}</p>`, "assistant") }
+      busy(false);
+    };
+    card.querySelector(".ok").onclick = () => go(true);
+    card.querySelector(".no").onclick = () => go(false);
+  });
+}
+function handle(r){
+  (r.guardrails || []).forEach(g => add(`<p class="muted">🛡 ${esc(g)}</p>`, "assistant"));
+  (r.steps || []).forEach(renderStep);
+  if(r.verificacion){
+    const v = r.verificacion;
+    add(v.aviso ? `<p class="err">⚠ ${esc(v.aviso)}</p>`
+                : `<p class="muted">✓ Verificación automática: ${v.verificados.length} estudio(s) citado(s) existen en el proyecto.</p>`, "assistant");
+  }
+  if(r.warning) add(`<p class="muted">⚠ ${esc(r.warning)}</p>`, "assistant");
+  if(r.error) add(`<p class="err">${esc(r.error)}</p>`, "assistant");
+  if(r.status === "awaiting_approval") renderApprovals(r.approvals || []);
+  if(r.events) renderEvents(r.events);
+  if(r.usage) renderUsage(r.usage);
+  refreshReports();
+}
+function renderEvents(ev){
+  if(!ev.length) return;
+  $("#events").innerHTML = ev.slice().reverse().map(e => `<div class="ev">${esc(e.study_type)}<br><a data-id="${esc(e.study_id)}">${esc(e.study_id)}</a></div>`).join("");
+  $("#events").querySelectorAll("a").forEach(a => a.onclick = () => showStudy(a.dataset.id));
+}
+function renderUsage(u){ $("#usage").textContent = `${u.llamadas||0} llamadas · entrada ${u.input_tokens||0} · caché ${u.cache_read_input_tokens||0} · salida ${u.output_tokens||0} tokens`; }
+async function refreshReports(){
+  if(!SID) return;
+  const s = await api("/api/sessions/" + SID).catch(()=>null);
+  if(s && s.reports.length) $("#reports").innerHTML = s.reports.map(r => `<div class="ev"><a href="/api/reports/${esc(r)}" target="_blank">${esc(r)}</a></div>`).join("");
+}
+function chart(t, series, title, unit){
+  const W = 560, H = 220, P = 34; const all = Object.values(series).flat();
+  let lo = Math.min(...all), hi = Math.max(...all); if(hi - lo < 1e-6){ hi += 1; lo -= 1; }
+  const x = v => P + (v - t[0]) / (t[t.length-1] - t[0]) * (W - P - 8), y = v => H - 22 - (v - lo) / (hi - lo) * (H - 40);
+  const colors = ["#0b5cad","#c2410c","#15803d","#7c3aed","#be123c","#0e7490"];
+  const lines = Object.entries(series).map(([k, v], i) => `<polyline fill="none" stroke="${colors[i % 6]}" stroke-width="1.6" points="${v.map((p, j) => x(t[j]).toFixed(1) + "," + y(p).toFixed(1)).join(" ")}"><title>${esc(k)}</title></polyline>`).join("");
+  const legend = Object.keys(series).map((k, i) => `<tspan fill="${colors[i % 6]}"> ■ ${esc(k)}</tspan>`).join("");
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}"><text x="${P}" y="14" font-size="12" fill="currentColor">${esc(title)} (${esc(unit)})</text>
+  <text x="2" y="${y(hi)+4}" font-size="10" fill="currentColor">${hi.toFixed(2)}</text><text x="2" y="${y(lo)}" font-size="10" fill="currentColor">${lo.toFixed(2)}</text>
+  <line x1="${P}" y1="${H-22}" x2="${W-8}" y2="${H-22}" stroke="currentColor" opacity=".3"/>
+  <text x="${W-60}" y="${H-6}" font-size="10" fill="currentColor">t [s] ${t[t.length-1].toFixed(1)}</text>${lines}
+  <text x="${P}" y="${H-6}" font-size="10">${legend}</text></svg>`;
+}
+async function showStudy(id){
+  const m = await api("/api/studies/" + id);
+  let h = `<h2>${esc(id)}</h2><div class="muted">${esc(m.simulator)} ${esc(m.simulator_version)} · caso ${esc(m.case_id)}<br>sha256 ${esc(m.case_sha256.slice(0,16))}…</div>`;
+  const a = m.artifacts || {};
+  if(m.study_type === "transient_stability" && a.t){
+    h += chart(a.t, a.angulos_coi_deg, "Ángulo rotor vs COI", "°") + chart(a.t, {"f COI": a.frecuencia_coi_hz}, "Frecuencia", "Hz");
+  }
+  h += `<details><summary class="muted">Resumen JSON</summary><pre style="font-size:11px;white-space:pre-wrap">${esc(JSON.stringify(m.summary, null, 1))}</pre></details>`;
+  $("#viewer").innerHTML = h;
+}
+// Indicador de progreso: la API responde al final del turno, así que los mensajes describen
+// las etapas típicas de cada tipo de tarea y el contador muestra el tiempo transcurrido.
+const PROGRESS = {
+  chat: ["Interpretando la consulta…", "Planificando el estudio…", "Consultando la base normativa NTCSE / COES…",
+         "Ejecutando simulaciones…", "Verificando límites operativos…", "Redactando la respuesta…"],
+  run_transient_stability: ["Aplicando la falla trifásica…", "Integrando las ecuaciones del sistema…",
+         "Siguiendo los ángulos de rotor respecto del COI…", "Evaluando frecuencia y recuperación de tensión…",
+         "Interpretando los resultados…"],
+  export_report: ["Reuniendo los manifiestos de los estudios…", "Verificando criterios y fuentes…", "Componiendo el informe firmado…"],
+  rechazo: ["Registrando la decisión del ingeniero…", "Buscando alternativas…"],
+};
+const prog = {timer:null, rot:null, t0:0};
+function progressOn(mode){
+  const msgs = PROGRESS[mode] || PROGRESS.chat; let i = 0;
+  const el = $("#progress"), txt = $("#ptext"), meta = $("#pmeta");
+  txt.textContent = msgs[0]; meta.textContent = "0 s"; prog.t0 = Date.now();
+  el.classList.add("on"); el.setAttribute("aria-hidden", "false");
+  clearInterval(prog.timer); clearInterval(prog.rot);
+  prog.timer = setInterval(() => {
+    const s = Math.round((Date.now() - prog.t0) / 1000);
+    meta.textContent = s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
+  }, 1000);
+  prog.rot = setInterval(() => {
+    if(i >= msgs.length - 1) return;  // se queda en la última etapa hasta que llegue la respuesta
+    txt.classList.add("fade");
+    setTimeout(() => { txt.textContent = msgs[++i]; txt.classList.remove("fade"); }, 300);
+  }, 4500);
+}
+function progressOff(){
+  clearInterval(prog.timer); clearInterval(prog.rot);
+  const el = $("#progress"); el.classList.remove("on"); el.setAttribute("aria-hidden", "true");
+}
+function busy(b, mode){
+  $("#btnSend").disabled = b; $("#msg").disabled = b; $("#btnSend").textContent = b ? "Procesando…" : "Enviar";
+  b && mode ? progressOn(mode) : progressOff();
+}
+function ready(v){
+  $("#setup").hidden = true; $("#info").hidden = false; $("#sugg").hidden = false; busy(false);
+  v = v || {};
+  $("#sinfo").innerHTML = `${esc(SID)}<br>Caso estático: <span class="chip">${esc(v.caso_estatico || "ieee14_cdf")}</span><br>Caso dinámico: <span class="chip">${esc(v.caso_dinamico || "ieee14_dyn")}</span>`;
+}
+async function loadCases(select){
+  const list = await api("/api/cases").catch(() => []);
+  const fill = (el, sim) => {
+    const keep = select && select.simulador === sim ? select.case_id : el.value;
+    const opts = list.filter(c => c.simulador === sim).map(c => {
+      const extra = c.origen === "subido" ? ` · subido${c.n_barras ? " · " + c.n_barras + " barras" : ""}` : " · incluido";
+      return `<option value="${esc(c.case_id)}" title="${esc(c.descripcion)}">${esc(c.case_id)}${esc(extra)}</option>`;
+    });
+    el.innerHTML = opts.join("");
+    if(keep && list.some(c => c.case_id === keep)) el.value = keep;
+  };
+  fill($("#f_cs"), "pandapower"); fill($("#f_cd"), "andes");
+  if(select) syncScenario();
+}
+// El escenario sigue al caso elegido mientras el ingeniero no lo edite a mano
+let escEdited = false;
+$("#f_esc").addEventListener("input", () => escEdited = true);
+function syncScenario(){
+  if(escEdited) return;
+  const o = $("#f_cs").selectedOptions[0], d = $("#f_cd").selectedOptions[0];
+  if(o && d) $("#f_esc").value = `Estático: ${o.title.slice(0, 235)}\nDinámico: ${d.title.slice(0, 235)}`;  // límite 500
+}
+$("#f_cs").onchange = $("#f_cd").onchange = syncScenario;
+$("#f_file").onchange = async () => {
+  const f = $("#f_file").files[0]; if(!f) return;
+  const msg = $("#upmsg");
+  if(f.size > 5 * 1024 * 1024){ msg.innerHTML = `<span class="err">El archivo supera 5 MB.</span>`; return; }
+  msg.textContent = "Validando archivo con el simulador…"; $("#btnStart").disabled = true;
+  try{
+    const b64 = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = fail; r.readAsDataURL(f); });
+    const c = await api("/api/cases", {filename:f.name, content_base64:b64, subido_por:$("#f_user").value});
+    await loadCases(c);
+    const warn = (c.advertencias_datos || []).map(w => `<br>⚠ ${esc(w)}`).join("");
+    msg.innerHTML = `<span class="okc">✓ ${c.ya_existia ? "Ya estaba registrado" : "Registrado"}: ${esc(c.case_id)}</span> · ${esc(c.formato)} · ${c.n_barras} barras, ${c.n_ramas} ramas, ${c.n_generadores} generadores${warn}`;
+  }catch(e){ msg.innerHTML = `<span class="err">${esc(e.message)}</span>` }
+  $("#f_file").value = ""; $("#btnStart").disabled = false;
+};
+
+$("#btnStart").onclick = async () => {
+  try{
+    const r = await api("/api/sessions", {user:$("#f_user").value, role:$("#f_role").value, project_id:$("#f_project").value,
+      objetivo_estudio:$("#f_obj").value, escenario:$("#f_esc").value, criterios:$("#f_crit").value, restricciones:$("#f_rest").value,
+      caso_estatico:$("#f_cs").value, caso_dinamico:$("#f_cd").value});
+    SID = r.session_id; store("geneps_sid", SID); $("#log").innerHTML = "";
+    ready({caso_estatico:$("#f_cs").value, caso_dinamico:$("#f_cd").value});
+    add(`<p class="muted">Sesión ${esc(SID)} iniciada en el proyecto ${esc(r.project_id)}.</p>`, "assistant");
+  }catch(e){ alert(e.message) }
+};
+$("#btnNew").onclick = () => { store("geneps_sid"); location.reload(); };
+$("#btnPdf").onclick = async () => {
+  const b = $("#btnPdf"), msg = $("#pdfmsg");
+  b.disabled = true; b.textContent = "Generando PDF…"; msg.textContent = "";
+  try{
+    const r = await fetch(`/api/sessions/${encodeURIComponent(SID)}/pdf`);
+    if(!r.ok) throw new Error((await r.json().catch(() => ({detail:r.statusText}))).detail || r.statusText);
+    const url = URL.createObjectURL(await r.blob());
+    const a = Object.assign(document.createElement("a"), {href:url, download:`GenEPS_${SID}.pdf`});
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }catch(e){ msg.innerHTML = `<span class="err">${esc(e.message)}</span>` }
+  b.disabled = false; b.textContent = "⬇ Descargar PDF";
+};
+document.querySelectorAll("#sugg button").forEach(b => b.onclick = () => { $("#msg").value = b.textContent; $("#msg").focus(); });
+$("#msg").addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); $("#chat").requestSubmit(); } });
+$("#chat").onsubmit = async e => {
+  e.preventDefault(); const text = $("#msg").value.trim(); if(!text || !SID) return;
+  add(esc(text), "user"); $("#msg").value = ""; busy(true, "chat");
+  try{ handle(await api("/api/chat", {session_id:SID, message:text})) }catch(err){ add(`<p class="err">${esc(err.message)}</p>`, "assistant") }
+  busy(false);
+};
+loadCases();
+(async () => {
+  const sid = recall("geneps_sid"); if(!sid) return;
+  try{
+    const s = await api("/api/sessions/" + sid); SID = sid; $("#log").innerHTML = ""; ready(s.variables);
+    s.history.forEach(h => h.role === "user" ? add(esc(h.text), "user") : renderStep(h));
+    if(s.approvals.length) renderApprovals(s.approvals);
+    renderEvents(s.events); renderUsage(s.usage); refreshReports();
+  }catch(e){ store("geneps_sid") }
+})();
+</script>
+</body>
+</html>

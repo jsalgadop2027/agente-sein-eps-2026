@@ -1,0 +1,9 @@
+# Construye la imagen y ejecuta la prueba de humo de los simuladores (sin LLM ni GCS).
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "geneps-test", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["run", "--rm", "-e", "LOCAL_STORE=/tmp/store", "geneps-test", "python", "-m", "tests.smoke_sims"]
+options:
+  machineType: E2_HIGHCPU_8
+timeout: 1800s

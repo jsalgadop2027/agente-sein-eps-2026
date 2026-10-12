@@ -1,0 +1,7 @@
+anthropic==1.13.0
+fastapi==0.143.0
+uvicorn==0.54.0
+google-cloud-storage==3.17.0
+pandapower==3.5.6
+andes==2.0.0
+reportlab==4.2.5
