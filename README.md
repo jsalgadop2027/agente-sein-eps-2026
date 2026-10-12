@@ -9,6 +9,9 @@ trazables firmados por un ingeniero.
 - **Simuladores (licencia libre):** pandapower 3.5.6 (estático) y ANDES 2.0.0 (dinámico).
 - **Plataforma:** Google Cloud Run + Secret Manager + Cloud Storage (`agente-sein-eps-2026`, `us-east1`).
 
+Trabajo final del curso **Diseño e Implementación de Agentes de IA** (UTEC), octubre de 2026.
+Autores: Julio Salgado, Manuel Cabrera, Luis Oporto y Christian Monrroy.
+
 ## Arquitectura
 
 ```text
@@ -32,6 +35,19 @@ Cloud Run "geneps"  (FastAPI, usuario sin privilegios)
    |-- Secret Manager: anthropic-api-key-us, geneps-ui-password-us  (solo lectura para la cuenta geneps-run)
    `-- Cloud Storage: gs://agente-sein-eps-2026-geneps-us
          sessions/ studies/ reports/ jobs/ audit/ projects/ cases/
+```
+
+### Estructura del repositorio
+
+```text
+src/                  código de la aplicación (ver arquitectura); src/static/index.html es la interfaz web
+data/ieee14cdf.txt    caso incluido IEEE 14 barras (lo leen el Dockerfile, los adaptadores y las pruebas)
+tests/smoke_sims.py   prueba de humo de los simuladores, guardrails y PDF (sin LLM ni GCS)
+tests/e2e.py          prueba de punta a punta contra el servicio desplegado
+Dockerfile            imagen Python 3.13 para Cloud Run
+deploy.sh             despliegue en Cloud Run (secretos desde Secret Manager)
+cloudbuild.test.yaml  build de la imagen + prueba de humo en Cloud Build
+.env.example          plantilla de variables para ejecución local
 ```
 
 ## Correspondencia con la Profile Card
@@ -105,6 +121,53 @@ reemplaza el informe técnico firmado que emite `export_report`.
 | POST | `/api/jobs/screening` | Workflow batch: flujo + N-1 por escenarios de demanda (`case_id` opcional) |
 | GET | `/docs` | Swagger |
 
+## Requisitos
+
+- Python 3.13 (versión del contenedor).
+- [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) con acceso al proyecto `agente-sein-eps-2026` (despliegue y pruebas en la nube).
+- Clave de la Claude API de Anthropic.
+- Docker (opcional, para construir la imagen en local).
+
+## Ejecución local
+
+```bash
+python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt python-dotenv
+andes prepare -q                                       # una sola vez: genera el código numérico de ANDES
+cp .env.example .env                                   # completar ANTHROPIC_API_KEY
+uvicorn src.main:app --env-file .env --reload          # http://localhost:8000
+```
+
+Sin `GCS_BUCKET`, los datos se guardan en `.store/` (excluida del repositorio). La app no carga `.env`
+por sí sola: `--env-file` de uvicorn lo hace y requiere `python-dotenv`. Si las extensiones nativas
+de pandapower/ANDES no cargan en el equipo, usar Docker o Cloud Build.
+
+### Variables de entorno
+
+| Variable | Obligatoria | Por defecto | Descripción |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | Sí | — | Clave de la Claude API (en Cloud Run, secreto `anthropic-api-key-us`) |
+| `GENEPS_USER` | No | `geneps` | Usuario del login HTTP Basic |
+| `GENEPS_PASSWORD` | En Cloud Run | vacío | Contraseña del login; vacía en local desactiva el login, en Cloud Run bloquea el acceso |
+| `GENEPS_MODEL` | No | `claude-opus-5-5` | Modelo de Claude |
+| `GENEPS_EFFORT` | No | `high` | Nivel de esfuerzo del modelo |
+| `GENEPS_EFFORT_ROUTING` | No | `1` | `0` desactiva el ajuste automático de esfuerzo |
+| `GCS_BUCKET` | No | — | Bucket de Cloud Storage; si no se define, se usa disco local |
+| `LOCAL_STORE` | No | `.store` | Carpeta de almacenamiento local |
+
+## Pruebas
+
+```bash
+# Prueba de humo (simuladores, rechazo de archivos inválidos, PDF y guardrails; sin LLM ni GCS)
+python -m tests.smoke_sims
+# La misma prueba dentro de la imagen, en Cloud Build
+gcloud builds submit --config cloudbuild.test.yaml --project agente-sein-eps-2026 .
+# Punta a punta contra el servicio desplegado: sesión → N-1 → transitoria (aprobación) → informe (firma)
+python tests/e2e.py https://geneps-242712336860.us-east1.run.app "$(gcloud secrets versions access latest --secret geneps-ui-password-us --project agente-sein-eps-2026)"
+```
+
+`tests/e2e.py` solo usa la biblioteca estándar y consume la Claude API (tiene costo).
+
 ## Despliegue
 
 Recursos creados una vez:
@@ -137,3 +200,25 @@ Prueba de los simuladores en la nube (sin LLM): `gcloud builds submit --region u
 - Acceso con una única credencial compartida (HTTP Basic): no hay cuentas por usuario; la firma de informes registra el nombre que declara el ingeniero.
 - Una sola instancia de Cloud Run (`max-instances=1`) para garantizar el bloqueo por sesión.
 - Python 3.13 en el contenedor (las dependencias no se validaron en 3.14).
+
+## Cómo contribuir
+
+1. Trabajar en una rama propia (p. ej. `jsalgadop`) actualizada con `main`: `git pull origin main`.
+2. Hacer commits pequeños y descriptivos; correr `python -m tests.smoke_sims` (o Cloud Build) antes de subir.
+3. `git push` y abrir un Pull Request hacia `main`; fusionar tras revisión.
+4. Nunca subir `.env`, llaves de cuentas de servicio ni datos de `.store/` (ver `.gitignore`).
+   Las credenciales viven en Secret Manager.
+5. El repositorio usa saltos de línea LF (`.gitattributes`): `deploy.sh` y la imagen corren en Linux.
+
+## Autores
+
+- Julio Salgado
+- Manuel Cabrera
+- Luis Oporto
+- Christian Monrroy
+
+## Licencia
+
+Proyecto académico desarrollado para el curso Diseño e Implementación de Agentes de IA (UTEC).
+Sin licencia abierta: todos los derechos reservados por los autores. pandapower (BSD-3-Clause) y
+ANDES (GPL-3.0) conservan sus propias licencias.
