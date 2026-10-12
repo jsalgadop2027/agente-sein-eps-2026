@@ -48,9 +48,14 @@ Dockerfile            imagen Python 3.13 para Cloud Run
 deploy.sh             despliegue en Cloud Run (secretos desde Secret Manager)
 cloudbuild.test.yaml  build de la imagen + prueba de humo en Cloud Build
 .env.example          plantilla de variables para ejecución local
+docs/profile-card.png Agentic System Profile Card (diseño del agente)
 ```
 
 ## Correspondencia con la Profile Card
+
+[![Agentic System Profile Card — Agente de Estudios de Estabilidad SEP (SEIN, Perú)](docs/profile-card.png)](docs/profile-card.png)
+
+*Agentic System Profile Card (v2) que guía el diseño del agente. Clic en la imagen para verla en tamaño completo.*
 
 | Capa de la Profile Card | Implementación |
 |---|---|
