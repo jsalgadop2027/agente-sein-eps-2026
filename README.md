@@ -41,7 +41,8 @@ Cloud Run "geneps"  (FastAPI, usuario sin privilegios)
 
 ```text
 src/                  código de la aplicación (ver arquitectura); src/static/index.html es la interfaz web
-data/ieee14cdf.txt    caso incluido IEEE 14 barras (lo leen el Dockerfile, los adaptadores y las pruebas)
+data/pandapower/     casos IEEE CDF (14, 30 y 118 barras); ieee14cdf.txt lo leen los adaptadores y las pruebas
+data/andes/          casos dinámicos ANDES (IEEE 39 barras, Kundur)
 tests/smoke_sims.py   prueba de humo de los simuladores, guardrails y PDF (sin LLM ni GCS)
 tests/e2e.py          prueba de punta a punta contra el servicio desplegado
 Dockerfile            imagen Python 3.13 para Cloud Run

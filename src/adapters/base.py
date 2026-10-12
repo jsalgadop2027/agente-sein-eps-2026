@@ -63,7 +63,7 @@ CASES: dict[str, dict] = {
     "ieee14_cdf": {
         "descripcion": "IEEE 14 barras, archivo CDF del UW Power Systems Test Case Archive (1962). "
                        "Datos estáticos: flujo de potencia y contingencias N-1.",
-        "archivo": "data/ieee14cdf.txt",
+        "archivo": "data/pandapower/ieee14cdf.txt",
         "formato": "IEEE CDF",
         "simulador": "pandapower",
         "estudios": STUDIES_BY_SIMULATOR["pandapower"],
