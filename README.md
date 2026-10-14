@@ -90,6 +90,7 @@ En el formulario de nueva sesión, el recuadro **Archivos de datos a evaluar** t
   ANDES: carga, generadores GENROU y convergencia del flujo inicial). Si es válido queda registrado en
   `cases/{case_id}/` con su SHA-256 y se selecciona automáticamente. Subir el mismo archivo dos veces
   reutiliza el caso existente.
+  El botón **Cargar archivo** empieza deshabilitado y solo se activa cuando el archivo subido pasa la validación de formato; si un archivo no cumple, el botón vuelve a deshabilitarse.
 
 El agente recibe los `case_id` elegidos en su contexto y los pasa a las herramientas; cada estudio
 guarda el `case_id` y el SHA-256 del archivo usado.
@@ -104,7 +105,7 @@ reemplaza el informe técnico firmado que emite `export_report`.
 
 ### Flujo de demostración sugerido
 
-1. Pulsar **Cargar archivo** (objetivo y escenario ya vienen precargados; los casos por defecto son IEEE 14 barras). **Cargar nuevo archivo** vuelve al formulario para empezar otra sesión.
+1. Subir un archivo válido (por ejemplo `data/pandapower/ieee14cdf.txt`) y pulsar **Cargar archivo**, que se habilita al validarse (objetivo y escenario ya vienen precargados). **Cargar nuevo archivo** vuelve al formulario para empezar otra sesión.
 2. "Valida el caso base y ejecuta el análisis N-1. ¿Cuáles son las contingencias críticas?"
 3. "Evalúa la estabilidad transitoria ante una falla trifásica en la barra 4 despejada en 100 ms con disparo de la línea 4-5." → **aprobar** con nombre.
 4. "Revisa el amortiguamiento de los modos electromecánicos."
