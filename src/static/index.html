@@ -94,7 +94,8 @@ text-align:center;box-shadow:0 12px 40px rgba(74,52,24,.18);transform:translateY
       <div class="hint">IEEE CDF (.txt, .cdf) → estático · ANDES (.xlsx) → dinámico · máx. 5 MB</div>
       <div id="upmsg" class="hint" role="status"></div>
     </fieldset>
-    <div style="margin-top:12px"><button id="btnStart">Cargar archivo</button></div>
+    <div style="margin-top:12px"><button id="btnStart" disabled aria-describedby="startHint">Cargar archivo</button></div>
+    <div id="startHint" class="hint">Se habilita cuando el archivo subido tiene un formato válido.</div>
   </div>
   <div id="info" hidden>
     <h2>Sesión</h2><div id="sinfo" class="muted"></div>
@@ -296,22 +297,37 @@ function syncScenario(){
   if(o && d) $("#f_esc").value = `Estático: ${o.title.slice(0, 235)}\nDinámico: ${d.title.slice(0, 235)}`;  // límite 500
 }
 $("#f_cs").onchange = $("#f_cd").onchange = syncScenario;
+// La etapa de estudio solo se habilita con un archivo de formato válido (validado por el simulador)
+const FORMATS = [".txt", ".cdf", ".xlsx"];
+let fileOk = false;
+function setStart(ok, hint){
+  fileOk = ok; $("#btnStart").disabled = !ok;
+  $("#startHint").textContent = hint;
+}
 $("#f_file").onchange = async () => {
   const f = $("#f_file").files[0]; if(!f) return;
   const msg = $("#upmsg");
-  if(f.size > 5 * 1024 * 1024){ msg.innerHTML = `<span class="err">El archivo supera 5 MB.</span>`; return; }
-  msg.textContent = "Validando archivo con el simulador…"; $("#btnStart").disabled = true;
+  const ext = (f.name.match(/\.[^.]+$/) || [""])[0].toLowerCase();
+  const reject = text => {
+    msg.innerHTML = `<span class="err">${esc(text)}</span>`; $("#f_file").value = "";
+    setStart(false, "Deshabilitado: el archivo no cumple con los formatos requeridos.");
+  };
+  if(!FORMATS.includes(ext)) return reject(`Formato '${ext || f.name}' no soportado. Use IEEE CDF (.txt, .cdf) o ANDES (.xlsx).`);
+  if(f.size > 5 * 1024 * 1024) return reject("El archivo supera 5 MB.");
+  msg.textContent = "Validando archivo con el simulador…"; setStart(false, "Validando el archivo…");
   try{
     const b64 = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = fail; r.readAsDataURL(f); });
     const c = await api("/api/cases", {filename:f.name, content_base64:b64, subido_por:$("#f_user").value});
     await loadCases(c);
     const warn = (c.advertencias_datos || []).map(w => `<br>⚠ ${esc(w)}`).join("");
     msg.innerHTML = `<span class="okc">✓ ${c.ya_existia ? "Ya estaba registrado" : "Registrado"}: ${esc(c.case_id)}</span> · ${esc(c.formato)} · ${c.n_barras} barras, ${c.n_ramas} ramas, ${c.n_generadores} generadores${warn}`;
-  }catch(e){ msg.innerHTML = `<span class="err">${esc(e.message)}</span>` }
-  $("#f_file").value = ""; $("#btnStart").disabled = false;
+    $("#f_file").value = "";
+    setStart(true, "Formato válido: puede pasar a la etapa de estudio.");
+  }catch(e){ reject(e.message) }
 };
 
 $("#btnStart").onclick = async () => {
+  if(!fileOk) return;
   try{
     const r = await api("/api/sessions", {user:$("#f_user").value, role:$("#f_role").value, project_id:$("#f_project").value,
       objetivo_estudio:$("#f_obj").value, escenario:$("#f_esc").value, criterios:$("#f_crit").value, restricciones:$("#f_rest").value,
