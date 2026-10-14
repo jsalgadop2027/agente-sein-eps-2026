@@ -134,4 +134,4 @@ def case_file(case_id: str, simulator: str | None = None) -> Path:
             local.parent.mkdir(parents=True, exist_ok=True)
             local.write_bytes(data)
         return local
-    return DATA_DIR / Path(ref).name
+    return DATA_DIR / Path(ref).relative_to("data")  # conserva la subcarpeta (pandapower/, andes/)

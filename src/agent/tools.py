@@ -6,6 +6,7 @@ import json
 import logging
 
 from src.adapters.base import SimulationInputError, clean_text, list_cases
+from src.agent.guardrails import detect_injection
 from src.analysis.criteria import query_limits
 from src.memory import studies
 from src.reports.report import build_report
@@ -132,6 +133,10 @@ def execute(name: str, args: dict, session: dict, approval: dict | None = None) 
             m.pop("artifacts", None)
             out = m
         elif name == "save_project_note":
+            # La nota vuelve al modelo en sesiones futuras: no se guarda texto con forma de instrucción
+            if detect_injection(args["note"]):
+                return json.dumps({"error": "La nota contiene texto con forma de instrucción al agente; "
+                                            "redáctala solo con hechos técnicos."}, ensure_ascii=False), True
             signer = (approval or {}).get("signer", "")
             n = studies.add_project_note(session["project_id"], args["note"],
                                          f"{session['user']} (aprobó {signer})" if signer else session["user"])

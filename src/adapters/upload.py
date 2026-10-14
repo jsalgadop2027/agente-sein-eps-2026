@@ -67,6 +67,9 @@ def register_case(filename: str, data: bytes, uploaded_by: str = "", description
                                    "para estudios estáticos o ANDES (.xlsx) para estudios dinámicos.")
     if not data:
         raise SimulationInputError("El archivo está vacío.")
+    from src.agent.guardrails import detect_injection  # import diferido: guardrails depende de base
+    if detect_injection(filename, description, uploaded_by):
+        raise SimulationInputError("El nombre, la descripción o el autor contienen instrucciones dirigidas al agente.")
     if len(data) > MAX_BYTES:
         raise SimulationInputError(f"El archivo supera el máximo de {MAX_BYTES // (1024 * 1024)} MB.")
 
