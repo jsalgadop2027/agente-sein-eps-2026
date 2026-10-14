@@ -129,6 +129,11 @@ def upload_case(body: CaseUpload):
 
 @app.post("/api/sessions")
 def new_session(body: NewSession):
+    # Estas variables se insertan en el system prompt: se rechaza cualquier intento de inyección
+    if (attack := orch.G.detect_injection(*body.model_dump(exclude={"caso_estatico", "caso_dinamico"}).values())):
+        store.audit("inyeccion_bloqueada", origen="nueva_sesion", usuario=body.user[:80], tipos=attack)
+        raise HTTPException(422, "Los datos de la sesión contienen instrucciones dirigidas al agente "
+                                 f"({', '.join(attack)}). Describa solo el estudio.")
     for field, simulator in (("caso_estatico", "pandapower"), ("caso_dinamico", "andes")):
         try:
             if get_case(getattr(body, field))["simulador"] != simulator:

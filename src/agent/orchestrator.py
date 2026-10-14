@@ -230,6 +230,15 @@ def chat(sid: str, text: str) -> dict:
             return {"status": "awaiting_approval", "steps": [], "approvals": pending_view(s),
                     "warning": "Hay una aprobación pendiente: resuélvala antes de continuar."}
         clean, notes = sanitize(text)
+        if (attack := G.detect_injection(text)):
+            # Se corta antes del modelo: el mensaje no entra al historial ni consume la Claude API
+            s["bloqueos_inyeccion"] = s.get("bloqueos_inyeccion", 0) + 1
+            save(s)
+            store.audit("inyeccion_bloqueada", session_id=sid, usuario=s["user"], tipos=attack, mensaje=clean[:500])
+            return {"status": "blocked", "steps": [{"text": G.INJECTION_REPLY, "thinking": "", "tool_calls": []}],
+                    "guardrails": notes + ["Mensaje bloqueado por intento de inyección de instrucciones "
+                                           f"({', '.join(attack)})."],
+                    "events": s["events"], "usage": s["usage"]}
         s["turn_errors"] = {}
         memory = None
         if not any(m["role"] == "user" for m in s["messages"]):

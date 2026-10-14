@@ -65,7 +65,7 @@ docs/profile-card.png Agentic System Profile Card (diseño del agente)
 | 3. Entorno | Herramientas `run_loadflow`, `run_contingency_n1`, `run_transient_stability`, `run_small_signal_analysis`, `query_limits`, `search_past_studies`, `get_study`, `save_project_note`, `export_report`, `list_cases`. |
 | 4. Memoria | Corto plazo: historial por sesión. Episódica: manifiesto por estudio. Semántica: base normativa versionada. Largo plazo: notas por proyecto. Procedural: metodología en el prompt. |
 | 5. Autonomía | Ejecuta estudios estáticos y pequeña señal por sí mismo; **pausa** para aprobar la simulación transitoria, para guardar notas en la memoria del proyecto y para **firmar** el informe. Sin escritura ni comandos sobre la red real. |
-| 6. Criticidad | Validación de entradas por herramienta, abstención ante no convergencia, criterio normativo vs supuesto explícito, redacción de secretos/correos, auditoría en `audit/`, manifiesto con SHA-256 del caso y versión del simulador. Guardrails en código (`src/agent/guardrails.py`): memoria del proyecto entregada como datos y no en el system prompt, notas de proyecto con aprobación humana, texto de archivos subidos saneado, máximo 2 intentos fallidos por herramienta y turno, y verificación de que cada `study_id` citado exista en el proyecto (aviso en la UI y en el PDF). |
+| 6. Criticidad | Validación de entradas por herramienta, abstención ante no convergencia, criterio normativo vs supuesto explícito, redacción de secretos/correos, auditoría en `audit/`, manifiesto con SHA-256 del caso y versión del simulador. Guardrails en código (`src/agent/guardrails.py`): bloqueo de inyección de instrucciones antes de llamar al modelo (etiquetas de rol falsas como `<admin>` o `<system>`, pedidos de reemplazar, ignorar o revelar el system prompt, suplantación de administrador y cambio de rol o de modo; texto normalizado contra variantes Unicode, caracteres invisibles y entidades HTML) en el chat, en las variables de la sesión, en los archivos subidos y en las notas del proyecto, memoria del proyecto entregada como datos y no en el system prompt, notas de proyecto con aprobación humana, texto de archivos subidos saneado, máximo 2 intentos fallidos por herramienta y turno, y verificación de que cada `study_id` citado exista en el proyecto (aviso en la UI y en el PDF). |
 
 ## Uso
 
@@ -118,7 +118,7 @@ reemplaza el informe técnico firmado que emite `export_report`.
 | GET | `/api/cases` | Lista los casos de datos (incluidos y subidos) |
 | POST | `/api/cases` | Sube un caso: `{filename, content_base64, descripcion?, subido_por?}`; 422 si no es válido |
 | POST | `/api/sessions` | Crea una sesión con variables de contexto y `caso_estatico` / `caso_dinamico` |
-| POST | `/api/chat` | Turno conversacional |
+| POST | `/api/chat` | Turno conversacional (`status: blocked` si el mensaje intenta inyectar instrucciones) |
 | POST | `/api/approve` | Aprueba/rechaza acciones pendientes (`signer` obligatorio para aprobar) |
 | GET | `/api/sessions/{id}` | Historial, aprobaciones pendientes, estudios, consumo |
 | GET | `/api/sessions/{id}/pdf` | PDF con las consultas y respuestas hasta el momento (409 si aún no hay respuestas) |
